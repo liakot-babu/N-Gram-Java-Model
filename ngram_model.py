@@ -24,8 +24,7 @@ def tokenized_methods(data):
 
 
 def save_tokens(data_path, token_path):
-    with open(data_path, 'r') as file:
-        datas = file.readlines()
+    datas = load_methods(data_path)
 
     datas = [preprocess_code(data) for data in datas]
     tokenized_datas = tokenized_methods(datas)
@@ -41,9 +40,19 @@ def save_tokens(data_path, token_path):
         print('Tokenized data saved to {}'.format(token_path))
 
 
-def save_bigram(data_path, bigram_path):
+def load_methods(data_path):
     with open(data_path, 'r') as file:
-        datas = file.readlines()
+        data = json.load(file)
+    datas = []
+    for folder in data:
+        for file in folder['folder_data']:
+            for method in file['file_data']:
+                datas.append(method['method_data'])
+    return datas
+
+
+def save_bigram(data_path, bigram_path):
+    datas = load_methods(data_path)
 
     datas = [preprocess_code(data) for data in datas]
     tokenized_datas = tokenized_methods(datas)
@@ -95,10 +104,10 @@ def generate_prediction(token_path, bigram_path):
 
 
 if __name__ == "__main__":
-    data_path = "final_method_data.txt"
+    data_path = "final_method_data.json"
     token_path = "tokens.txt"
     bigram_path = "bigrams.pkl"
 
-    # save_tokens(data_path, token_path)
-    # save_bigram(data_path, bigram_path)
-    generate_prediction(token_path, bigram_path)
+    save_tokens(data_path, token_path)
+    save_bigram(data_path, bigram_path)
+    # generate_prediction(token_path, bigram_path)
