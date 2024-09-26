@@ -1,19 +1,13 @@
 import pickle
 import re
-import math
 import json
-import nltk
-from nltk.util import ngrams, bigrams
 from collections import Counter
-from collections import defaultdict, Counter
-
+from nltk.util import ngrams
 
 def preprocess_code(code):
     # Remove comments
     code = re.sub(r'\/\/.*|\/\*[\s\S]*?\*\/', '', code)
-
     return code
-
 
 def tokenized_methods(data):
     tokenized_data = []
@@ -22,10 +16,8 @@ def tokenized_methods(data):
         tokenized_data.append(tokens)
     return tokenized_data
 
-
 def save_tokens(data_path, token_path):
     datas = load_methods(data_path)
-
     datas = [preprocess_code(data) for data in datas]
     tokenized_datas = tokenized_methods(datas)
 
@@ -39,7 +31,6 @@ def save_tokens(data_path, token_path):
         pickle.dump(tokens, f)
         print('Tokenized data saved to {}'.format(token_path))
 
-
 def load_methods(data_path):
     with open(data_path, 'r') as file:
         data = json.load(file)
@@ -50,64 +41,59 @@ def load_methods(data_path):
                 datas.append(method['method_data'])
     return datas
 
-
-def save_bigram(data_path, bigram_path):
+def save_ngram(data_path, ngram_path, n=2):
     datas = load_methods(data_path)
-
     datas = [preprocess_code(data) for data in datas]
     tokenized_datas = tokenized_methods(datas)
 
-    bigram = []
+    ngram_data = []
     for data in tokenized_datas:
-        bigram_list = list(bigrams(data))
-        if len(bigram_list) < 1:
+        ngram_list = list(ngrams(data, n))
+        if len(ngram_list) < 1:
             continue
-        bigram.extend(bigram_list)
+        ngram_data.extend(ngram_list)
 
-    with open(bigram_path, 'wb') as f:
-        pickle.dump(bigram, f)
-        print('Bigram data saved to {}'.format(bigram_path))
+    with open(ngram_path, 'wb') as f:
+        pickle.dump(ngram_data, f)
+        print(f"{n}-gram data saved to {ngram_path}")
 
-
-def generate_prediction(token_path, bigram_path):
-    with open(bigram_path, 'rb') as f:
-        bigrams = pickle.load(f)
+def generate_ngram_prediction(token_path, ngram_path, n=2):
+    with open(ngram_path, 'rb') as f:
+        ngrams = pickle.load(f)
 
     with open(token_path, 'rb') as f:
         tokens = pickle.load(f)
 
-    # print(tokens)
-    # print(Counter(bigrams))
-
-    Counts = Counter(bigrams)
+    Counts = Counter(ngrams)
 
     max_prob = -1
     prediction = None
 
-    context = "public"
+    context = ["public","void"]
 
-    total_public_count = sum(count for (first, second), count in Counts.items() if first == context)
-    print(f"Total public count: {total_public_count}")
+    total_context_count = sum(count for ngram, count in Counts.items() if ngram[:n-1] == tuple(context))
+    print(f"Total count for context {context}: {total_context_count}")
 
     for token in tokens:
-        bigram_count = Counts.get((context, token), 0)
+        ngram_context = tuple(context + [token])
+        ngram_count = Counts.get(ngram_context, 0)
 
-        if total_public_count > 0:
-            prob = bigram_count / total_public_count
+        if total_context_count > 0:
+            prob = ngram_count / total_context_count
             if prob > 0.1:
-                print(f"token: {token}, prob: {prob}")
+                print(f"ngram: {ngram_context}, prob: {prob}")
             if prob > max_prob:
                 max_prob = prob
                 prediction = token
 
-    print(f"public {prediction}")
-
+    print(f"{' '.join(context)} {prediction}")
 
 if __name__ == "__main__":
     data_path = "final_method_data.json"
-    token_path = "tokens.txt"
-    bigram_path = "bigrams.pkl"
+    token_path = "tokens.pkl"
+    ngram_path = "ngrams.pkl"
+    n = 3
 
     save_tokens(data_path, token_path)
-    save_bigram(data_path, bigram_path)
-    # generate_prediction(token_path, bigram_path)
+    save_ngram(data_path, ngram_path, n=n)
+    generate_ngram_prediction(token_path, ngram_path, n=n)
