@@ -1,5 +1,9 @@
+import json
 import os
+
 import javalang
+from tqdm import tqdm
+
 
 def getStartEnd(find_node, tree):
     start = None
@@ -11,6 +15,7 @@ def getStartEnd(find_node, tree):
         if start is None and node == find_node:
             start = node.position
     return start, end
+
 
 def getMethod(start, end, data):
     if start is None:
@@ -32,45 +37,78 @@ def getMethod(start, end, data):
 
     return method
 
+
 def getAllMethods(file_path):
     methods = []
+    id = 1
     with open(file_path, 'r') as f:
         data = f.read()
     try:
          tree = javalang.parse.parse(data)
          for _,node in tree.filter(javalang.tree.MethodDeclaration):
              start,end=getStartEnd(node,tree)
-             methods.append(getMethod(start, end, data))
+
+             file_methods = {
+                 "method_id": id,
+                 "method_data": getMethod(start, end, data)
+             }
+             id += 1
+
+             methods.append(file_methods)
     except Exception as e:
         print(e)
 
     return methods
 
+
 def getMethodsDirectory(directory):
     all_methods = []
+    id = 1
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith('.java'):
+            if not file.startswith("test") and file.endswith('.java'):
                 file_path = os.path.join(root, file)
-                methods = getAllMethods(file_path)
-                all_methods.extend(methods)
+                file_data = getAllMethods(file_path)
+
+                if len(file_data) == 0:
+                    continue
+
+                file_methods = {
+                    "file_id": id,
+                    "file_path": file_path,
+                    "file_data": file_data
+                }
+                id += 1
+
+                all_methods.append(file_methods)
+
     return all_methods
 
 
-java_folders = "/Users/babu/Documents/csci_680_Ai_swe/assignment_01_data/all_repo"
+java_folders = "bc-java"
 
 all_methods = []
-
-for subdir in os.listdir(java_folders):
+id = 1
+for subdir in tqdm(os.listdir(java_folders)):
     project_dir = os.path.join(java_folders, subdir)
     if os.path.isdir(project_dir):
-        methods = getMethodsDirectory(project_dir)
-        all_methods.extend(methods)
+        folder_data = getMethodsDirectory(project_dir)
 
-final_data = "/Users/babu/Documents/csci_680_Ai_swe/assignment_01_data/final_method_data.txt"
+        if len(folder_data) == 0:
+            continue
 
-with open(final_data, 'w', encoding='utf-8') as f:
-    for method in all_methods:
-        f.write(f"{method}\n\n")
+        subfolder = {
+            "folder_id": id,
+            "folder_path": project_dir,
+            "folder_data": folder_data
+        }
+        id += 1
+
+        all_methods.append(subfolder)
+
+final_data = "final_method_data.json"
+
+with open(final_data, 'w') as json_file:
+    json.dump(all_methods, json_file, indent=4)
 
 print("done")
